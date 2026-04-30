@@ -3,11 +3,19 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>sd2526</groupId>
+<<<<<<< HEAD
 	<artifactId>sd2526-proj2</artifactId>
 	<version>1</version>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<authors>62746-69720</authors>
+=======
+	<artifactId>sd2526-tp1-ref</artifactId>
+	<version>1</version>
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<authors>XXXXX-YYYYY</authors>
+>>>>>>> b6bb8a9 (Update pom.xml)
 	</properties>
 	<build>
 		<sourceDirectory>src</sourceDirectory>
