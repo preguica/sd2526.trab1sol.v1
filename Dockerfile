@@ -9,4 +9,7 @@ COPY *.jks ./
 COPY client_truststore.ks .
 
 
-COPY target/sd2526*.jar sd2526.jar
+COPY tls/*.ks /home/sd/
+
+# copy the jar created by assembly to the docker image
+COPY target/sd*.jar sd2526.jar
