@@ -55,11 +55,7 @@ public abstract class AbstractGrpcServer extends AbstractServer {
 		try {
 			keystore = KeyStore.getInstance(KeyStore.getDefaultType());
 			try(FileInputStream input = new FileInputStream(keyStoreFilename)) {
-				try {
-					keystore.load(input, keyStorePassword.toCharArray());
-				} catch (Exception e) {
-					throw new IllegalStateException("Failed to load keystore", e);
-				}
+				keystore.load(input, keyStorePassword.toCharArray());
 			}
 		} catch (Exception e) {
 			throw new IllegalStateException("Failed to load default keystore", e);
