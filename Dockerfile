@@ -5,5 +5,8 @@ WORKDIR /home/sd
 
 ADD hibernate.cfg.xml .
 ADD messages.props .
+COPY *.jks .
+COPY client_truststore.ks .
+
 
 COPY target/sd2526*.jar sd2526.jar
