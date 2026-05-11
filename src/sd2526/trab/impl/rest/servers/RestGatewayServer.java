@@ -16,9 +16,10 @@ public class RestGatewayServer extends AbstractRestServer {
 
 	@Override
 	void registerResources(ResourceConfig config) {
-		config.registerInstances(new RestUsersResource(true), new RestMessagesResource(true));
-//		config.register(.getClass());
-//		config.register(.getClass());
+		RestUsersResource.isGateway = true;
+		RestMessagesResource.isGateway = true;
+		config.register(RestUsersResource.class);
+		config.register(RestMessagesResource.class);
 	}
 
 	public static void main(String[] args) {
