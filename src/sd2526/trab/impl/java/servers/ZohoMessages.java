@@ -77,12 +77,26 @@ public class ZohoMessages implements Messages, AdminMessages {
 
     @Override
     public Result<Message> getInboxMessage(String name, String mid, String pwd) {
+        Log.info("getInboxMessage user=%s mid=%s".formatted(name, mid));
+
+        if (badParams(name, mid, pwd)) return error(BAD_REQUEST);
+
+        var auth = Clients.UsersClient.get().getUser(name, pwd);
+        if (!auth.isOK()) return error(auth.error());
+
         // TODO
         return null;
     }
 
     @Override
     public Result<List<String>> getAllInboxMessages(String name, String pwd) {
+        Log.info("getAllInboxMessages user=%s".formatted(name));
+
+        if (badParams(name, pwd)) return error(BAD_REQUEST);
+
+        var auth = Clients.UsersClient.get().getUser(name, pwd);
+        if (!auth.isOK()) return error(auth.error());
+
         // TODO
         return null;
     }
@@ -102,12 +116,28 @@ public class ZohoMessages implements Messages, AdminMessages {
 
     @Override
     public Result<Void> deleteMessage(String name, String mid, String pwd) {
+        Log.info("deleteMessage name=%s mid=%s".formatted(name, mid));
+
+        if (badParams(name, mid, pwd))
+            return error(BAD_REQUEST);
+
+        var auth = Clients.UsersClient.get().getUser(name, pwd);
+        if (!auth.isOK()) return error(auth.error());
+
         // TODO
         return null;
     }
 
     @Override
     public Result<List<String>> searchInbox(String name, String pwd, String query) {
+        Log.info("searchInbox user=%s query=%s".formatted(name, query));
+
+        if (badParams(name, pwd))
+            return error(BAD_REQUEST);
+
+        var auth = Clients.UsersClient.get().getUser(name, pwd);
+        if (!auth.isOK()) return error(auth.error());
+
         // TODO
         return null;
     }
@@ -175,6 +205,17 @@ public class ZohoMessages implements Messages, AdminMessages {
     private Result<Void> storeInZoho(Message msg) {
         // TODO
         return null;
+    }
+
+    private boolean matches(Message msg, String s) {
+        return (msg.getSubject()  != null && msg.getSubject().toLowerCase().contains(s))
+                || (msg.getContents() != null && msg.getContents().toLowerCase().contains(s));
+    }
+
+    private boolean badParams(String... params) {
+        for (var p : params)
+            if (p == null || p.isBlank()) return true;
+        return false;
     }
 
 
