@@ -15,9 +15,9 @@ import sd2526.trab.impl.utils.JSON;
 public class Zoho {
     static final String MAIL_API_BASE = "https://mail.zoho.eu/api";
     // TODO: change to my credentials
-    static final String CLIENT_ID     = "1000.OF3ENQSLN1LX1VH9YRCMRWRODU9LWN";
-    static final String CLIENT_SECRET = "6a775bc7518e5b52a2318df0895b3ff44f255e70d6";
-    static final String REFRESH_TOKEN = "1000.08f9088e27eff3ce246e4c6b046bcc7c.ffb2831c13f4098702cb1ce111b0ccb0";
+    static final String CLIENT_ID     = "1000.WMVLZ2SPETT552S9B33XM8JV0HDDCT";
+    static final String CLIENT_SECRET = "77007f15bde61ec8a003b37ea86f368b9d7820a309";
+    static final String REFRESH_TOKEN = "1000.eb9504cb72640d31fd15f7627f449d09.ae033671c75f5ea777114a31aac7b4e8";
 
     private static final String ACCOUNTS = "/accounts";
 

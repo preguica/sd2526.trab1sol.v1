@@ -71,40 +71,74 @@ public class ZohoMessages implements Messages, AdminMessages {
         var userResult = Clients.UsersClient.get().getUser(senderName, pwd);
         if (!userResult.isOK()) return error(userResult.error());
 
-        // TODO
-        return null;
+        var sender = userResult.value();
+        String id  = "%s+%s".formatted(domain, UUID.randomUUID());
+        msg.setId(id);
+        msg.setSender("%s <%s@%s>".formatted(sender.getDisplayName(), sender.getName(), sender.getDomain()));
+
+        for (String dest : msg.getDestination()) {
+            var parts      = dest.split("@", 2);
+            var destDomain = parts.length == 2 ? parts[1] : domain;
+
+            if (destDomain.equals(domain)) {
+                var r = storeMessage(msg);
+                if (!r.isOK()) return error(r.error());
+            } else {
+                final var rd   = destDomain;
+                final var addr = dest;
+                jobs.submit(rd, () -> {
+                    var r = reTry(() -> Clients.AdminMessagesClient.get(rd).remotePostMessage(msg), REMOTE_DEADLINE);
+                    if (r.error() == Result.ErrorCode.TIMEOUT) storeMessage(msg.cloneWithTimeout(addr));
+                });
+            }
+        }
+        return ok(id);
     }
 
     @Override
     public Result<Message> getInboxMessage(String name, String mid, String pwd) {
         Log.info("getInboxMessage user=%s mid=%s".formatted(name, mid));
-
         if (badParams(name, mid, pwd)) return error(BAD_REQUEST);
 
         var auth = Clients.UsersClient.get().getUser(name, pwd);
         if (!auth.isOK()) return error(auth.error());
 
-        // TODO
-        return null;
+        try {
+            for (var summary : zoho.listMessages(accountId, inboxFolderId)) {
+                var msg = fetchAndParse(summary);
+                if (msg != null && mid.equals(msg.getId())) return ok(msg);
+            }
+            return error(NOT_FOUND);
+        } catch (Exception e) {
+            Log.warning("getInboxMessage: " + e.getMessage());
+            return error(INTERNAL_ERROR);
+        }
     }
 
     @Override
     public Result<List<String>> getAllInboxMessages(String name, String pwd) {
         Log.info("getAllInboxMessages user=%s".formatted(name));
-
         if (badParams(name, pwd)) return error(BAD_REQUEST);
 
         var auth = Clients.UsersClient.get().getUser(name, pwd);
         if (!auth.isOK()) return error(auth.error());
 
-        // TODO
-        return null;
+        try {
+            var ids = new ArrayList<String>();
+            for (var summary : zoho.listMessages(accountId, inboxFolderId)) {
+                var msg = fetchAndParse(summary);
+                if (msg != null) ids.add(msg.getId());
+            }
+            return ok(ids);
+        } catch (Exception e) {
+            Log.warning("getAllInboxMessages: " + e.getMessage());
+            return error(INTERNAL_ERROR);
+        }
     }
 
     @Override
     public Result<Void> removeInboxMessage(String name, String mid, String pwd) {
         Log.info("removeInboxMessage user=%s mid=%s".formatted(name, mid));
-
         if (badParams(name, mid, pwd))
             return error(BAD_REQUEST);
 
@@ -117,29 +151,60 @@ public class ZohoMessages implements Messages, AdminMessages {
     @Override
     public Result<Void> deleteMessage(String name, String mid, String pwd) {
         Log.info("deleteMessage name=%s mid=%s".formatted(name, mid));
-
         if (badParams(name, mid, pwd))
             return error(BAD_REQUEST);
 
         var auth = Clients.UsersClient.get().getUser(name, pwd);
         if (!auth.isOK()) return error(auth.error());
 
-        // TODO
-        return null;
+        try {
+            for (var summary : zoho.listMessages(accountId, inboxFolderId)) {
+                var msg = fetchAndParse(summary);
+                if (msg != null && mid.equals(msg.getId())) {
+                    if (!name.equals(msg.senderName())) return error(FORBIDDEN);
+
+                    zoho.deleteMessage(accountId, summary.folderId(), summary.messageId());
+
+                    for (String dest : msg.getDestination()) {
+                        var parts   = dest.split("@", 2);
+                        var dDomain = parts.length == 2 ? parts[1] : domain;
+                        if (!dDomain.equals(domain)) {
+                            final var rd = dDomain;
+                            jobs.submit(rd, () -> reTry(() ->
+                                    Clients.AdminMessagesClient.get(rd).remoteDeleteMessage(mid), REMOTE_DEADLINE));
+                        }
+                    }
+                    return ok();
+                }
+            }
+            return ok();
+        } catch (Exception e) {
+            Log.warning("deleteMessage: " + e.getMessage());
+            return error(INTERNAL_ERROR);
+        }
     }
 
     @Override
     public Result<List<String>> searchInbox(String name, String pwd, String query) {
         Log.info("searchInbox user=%s query=%s".formatted(name, query));
-
         if (badParams(name, pwd))
             return error(BAD_REQUEST);
 
         var auth = Clients.UsersClient.get().getUser(name, pwd);
         if (!auth.isOK()) return error(auth.error());
 
-        // TODO
-        return null;
+        var q = query.toLowerCase();
+        try {
+            var ids = new ArrayList<String>();
+            for (var summary : zoho.listMessages(accountId, inboxFolderId)) {
+                var msg = fetchAndParse(summary);
+                if (msg != null && matches(msg, q)) ids.add(msg.getId());
+            }
+            return ok(ids);
+        } catch (Exception e) {
+            Log.warning("searchInbox: " + e.getMessage());
+            return error(INTERNAL_ERROR);
+        }
     }
 
     @Override
