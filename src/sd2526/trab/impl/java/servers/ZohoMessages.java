@@ -144,8 +144,8 @@ public class ZohoMessages implements Messages, AdminMessages {
 
     @Override
     public Result<Void> remotePostMessage(Message m) {
-        Log.info("remotePostMessage id=%s".formatted(msg.getId()));
-        return storeInZoho(msg);
+        Log.info("remotePostMessage id=%s".formatted(m.getId()));
+        return storeMessage(m);
     }
 
     @Override
@@ -157,8 +157,7 @@ public class ZohoMessages implements Messages, AdminMessages {
     @Override
     public Result<Void> remoteDeleteUserInbox(String name) {
         Log.info("remoteDeleteUserInbox user=%s".formatted(name));
-        if (!localUser.equals(name))
-            return error(NOT_FOUND);
+        if (!localUser.equals(name)) return error(NOT_FOUND);
         try {
             cleanInbox();
             return ok();
@@ -167,26 +166,57 @@ public class ZohoMessages implements Messages, AdminMessages {
         }
     }
 
-    // Deletes all messages in the Zoho inbox
+    private String fetchInboxFolderId() throws Exception {
+        var folderId = zoho.getInboxFolderId(accountId);
+        if (folderId == null) throw new RuntimeException("Inbox folder not found in Zoho");
+        return folderId;
+    }
+
+    private Message fetchAndParse(EmailSummary summary) {
+        try {
+            var body = zoho.getMessageContent(accountId, summary.folderId(), summary.messageId());
+            return parseBody(body);
+        } catch (Exception e) {
+            Log.warning("fetchAndParse: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private Message parseBody(String body) {
+        if (body == null) return null;
+        int sepIdx = body.lastIndexOf(SEPARATOR);
+        if (sepIdx < 0) return null;
+
+        var contents = body.substring(0, sepIdx);
+        var metaJson = body.substring(sepIdx + SEPARATOR.length());
+        var meta     = JSON.decode(metaJson, StoredMetadata.class);
+        if (meta == null) return null;
+
+        var msg = new Message();
+        msg.setId(meta.id());
+        msg.setSender(meta.sender());
+        msg.setDestination(Set.copyOf(meta.destination()));
+        msg.setSubject(meta.subject());
+        msg.setCreationTime(meta.creationTime());
+        msg.setContents(contents);
+        return msg;
+    }
+
+    // deletes all messages in zoho inbox
     private void cleanInbox() throws Exception {
         Log.info("Cleaning Zoho inbox...");
-        for (var summary : listEmailSummaries()) deleteEmail(summary.folderId(), summary.messageId());
+        for (var summary : zoho.listMessages(accountId, inboxFolderId))
+            zoho.deleteMessage(accountId, summary.folderId(), summary.messageId());
         Log.info("Inbox cleaned.");
     }
 
     private void deleteEmail(String folderId, String zohoMsgId) throws Exception {
-        var url = Zoho.MAIL_API_BASE + "/accounts/" + accountId + "/folders/" + folderId + "/messages/" + zohoMsgId;
-        var request = signedRequest(Verb.DELETE, url);
-        // TODO
+        zoho.deleteMessage(accountId, folderId, zohoMsgId);
     }
 
-    // Lists all email summaries in the Zoho inbox
+    // lists  email summaries in zoho inbox
     private List<EmailSummary> listEmailSummaries() throws Exception {
-        var url     = Zoho.MAIL_API_BASE + "/accounts/" + accountId
-                + "/messages/view?folderId=" + inboxFolderId + "&limit=200";
-        var request = signedRequest(Verb.GET, url);
-        // TODO
-        return null;
+        return zoho.listMessages(accountId, inboxFolderId);
     }
 
     private Result<Void> deleteByMid(String mid) {
@@ -203,13 +233,6 @@ public class ZohoMessages implements Messages, AdminMessages {
             Log.warning("deleteByMid: " + e.getMessage());
             return error(INTERNAL_ERROR);
         }
-    }
-
-    private OAuthRequest signedRequest(Verb verb, String url) throws Exception {
-        var token   = new OAuth2AccessToken(zoho.tokenManager.getValidAccessToken());
-        var request = new OAuthRequest(verb, url);
-        zoho.service.signRequest(token, request);
-        return request;
     }
 
     private Result<Void> storeMessage(Message msg) {
@@ -259,5 +282,4 @@ public class ZohoMessages implements Messages, AdminMessages {
             List<String> destination,
             String       subject,
             long         creationTime) {}
-
 }

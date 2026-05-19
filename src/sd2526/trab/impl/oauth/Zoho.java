@@ -102,8 +102,46 @@ public class Zoho {
         }
     }
 
+    public List<EmailSummary> listMessages(String accountId, String inboxFolderId) throws Exception {
+        var url = MAIL_API_BASE + ACCOUNTS + "/" + accountId + "/messages/view?folderId=" + inboxFolderId + "&limit=200";
+        var request = signedRequest(Verb.GET, url);
 
+        try (Response response = service.execute(request)) {
+            if (!response.isSuccessful()) {
+                System.err.println("listMessages: " + response.getCode() + "/" + response.getBody());
+                return List.of();
+            }
+            var reply = JSON.decode(response.getBody(), ZohoMessageListReply.class);
+            return (reply != null && reply.data() != null) ? reply.data() : List.of();
+        }
+    }
 
+    public String getMessageContent(String accountId, String folderId, String messageId) throws Exception {
+        var url = MAIL_API_BASE + ACCOUNTS + "/" + accountId + "/folders/" + folderId + "/messages/" + messageId + "/content";
+        var request = signedRequest(Verb.GET, url);
+
+        try (Response response = service.execute(request)) {
+            if (!response.isSuccessful()) {
+                System.err.println("getMessageContent: " + response.getCode() + "/" + response.getBody());
+                return null;
+            }
+            var reply = JSON.decode(response.getBody(), ZohoMessageContentReply.class);
+            return (reply != null && reply.data() != null) ? reply.data().content() : null;
+        }
+    }
+
+    public boolean deleteMessage(String accountId, String folderId, String messageId) throws Exception {
+        var url = MAIL_API_BASE + "/accounts/" + accountId + "/folders/" + folderId + "/messages/" + messageId;
+        var request = signedRequest(Verb.DELETE, url);
+
+        try (Response response = service.execute(request)) {
+            if (!response.isSuccessful()) {
+                System.err.println("deleteMessage: " + response.getCode() + "/" + response.getBody());
+                return false;
+            }
+            return true;
+        }
+    }
 
     private OAuthRequest signedRequest(Verb verb, String url) throws Exception {
         var token   = new OAuth2AccessToken(tokenManager.getValidAccessToken());
@@ -111,5 +149,21 @@ public class Zoho {
         service.signRequest(token, request);
         return request;
     }
+
+    public static class EmailSummary {
+        String messageId;
+        String folderId;
+        String subject;
+
+        public String messageId() { return messageId; }
+        public String folderId()  { return folderId; }
+        public String subject()   { return subject; }
+    }
+
+    record ZohoFolder(String folderId, String folderName) {}
+    record ZohoFolderListReply(List<ZohoFolder> data) {}
+    record ZohoMessageListReply(List<EmailSummary> data) {}
+    record ZohoMessageContent(String content) {}
+    record ZohoMessageContentReply(ZohoMessageContent data) {}
 
 }
