@@ -190,8 +190,19 @@ public class ZohoMessages implements Messages, AdminMessages {
     }
 
     private Result<Void> deleteByMid(String mid) {
-        // TODO
-        return null;
+        try {
+            for (var summary : zoho.listMessages(accountId, inboxFolderId)) {
+                var msg = fetchAndParse(summary);
+                if (msg != null && mid.equals(msg.getId())) {
+                    zoho.deleteMessage(accountId, summary.folderId(), summary.messageId());
+                    return ok();
+                }
+            }
+            return error(NOT_FOUND);
+        } catch (Exception e) {
+            Log.warning("deleteByMid: " + e.getMessage());
+            return error(INTERNAL_ERROR);
+        }
     }
 
     private OAuthRequest signedRequest(Verb verb, String url) throws Exception {
@@ -201,10 +212,24 @@ public class ZohoMessages implements Messages, AdminMessages {
         return request;
     }
 
-    // Stores message in Zoho inbox
-    private Result<Void> storeInZoho(Message msg) {
-        // TODO
-        return null;
+    private Result<Void> storeMessage(Message msg) {
+        try {
+            var meta = new StoredMetadata(
+                    msg.getId(),
+                    msg.getSender(),
+                    new ArrayList<>(msg.getDestination()),
+                    msg.getSubject(),
+                    msg.getCreationTime());
+
+            var body    = msg.getContents() + SEPARATOR + JSON.encode(meta);
+            var subject = msg.getSubject() != null ? msg.getSubject() : "(no subject)";
+
+            boolean ok = zoho.sendMessage(accountId, zohoEmailAddress, subject, body);
+            return ok ? ok() : error(INTERNAL_ERROR);
+        } catch (Exception e) {
+            Log.warning("storeMessage: " + e.getMessage());
+            return error(INTERNAL_ERROR);
+        }
     }
 
     private boolean matches(Message msg, String s) {
@@ -218,5 +243,21 @@ public class ZohoMessages implements Messages, AdminMessages {
         return false;
     }
 
+    private <T> Result<T> reTry(java.util.function.Supplier<Result<T>> action, long deadlineMs) {
+        var start = System.currentTimeMillis();
+        Result<T> last;
+        do {
+            last = action.get();
+            if (last.error() != Result.ErrorCode.TIMEOUT) return last;
+        } while (System.currentTimeMillis() - start < deadlineMs);
+        return last;
+    }
+
+    record StoredMetadata(
+            String       id,
+            String       sender,
+            List<String> destination,
+            String       subject,
+            long         creationTime) {}
 
 }

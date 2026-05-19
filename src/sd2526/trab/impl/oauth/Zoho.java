@@ -57,5 +57,59 @@ public class Zoho {
         }
     }
 
+    public String getInboxFolderId(String accountId) throws Exception {
+        var request = signedRequest(Verb.GET, MAIL_API_BASE + ACCOUNTS + "/" + accountId + "/folders");
+
+        try (Response response = service.execute(request)) {
+            if (!response.isSuccessful()) {
+                System.err.println("getInboxFolderId: " + response.getCode() + "/" + response.getBody());
+                return null;
+            }
+            var reply = JSON.decode(response.getBody(), ZohoFolderListReply.class);
+            if (reply == null || reply.data() == null) return null;
+            for (var folder : reply.data())
+                if ("Inbox".equalsIgnoreCase(folder.folderName()))
+                    return folder.folderId();
+            return null;
+        }
+    }
+
+    public boolean sendMessage(String accountId, String fromAddress, String subject, String body) throws Exception {
+        var url     = MAIL_API_BASE + ACCOUNTS + "/" + accountId + "/messages";
+        var request = signedRequest(Verb.POST, url);
+        request.addHeader("Content-Type", "application/json");
+
+        // send to self so it appears in the inbox
+        var payload = """
+                {
+                  "fromAddress": "%s",
+                  "toAddress":   "%s",
+                  "subject":     "%s",
+                  "content":     %s
+                }""".formatted(
+                fromAddress,
+                fromAddress,
+                subject.replace("\"", "\\\""),
+                JSON.encode(body));
+
+        request.setPayload(payload);
+
+        try (Response response = service.execute(request)) {
+            if (!response.isSuccessful()) {
+                System.err.println("sendMessage: " + response.getCode() + "/" + response.getBody());
+                return false;
+            } return true;
+        }
+    }
+
+
+
+
+    private OAuthRequest signedRequest(Verb verb, String url) throws Exception {
+        var token   = new OAuth2AccessToken(tokenManager.getValidAccessToken());
+        var request = new OAuthRequest(verb, url);
+        service.signRequest(token, request);
+        return request;
+    }
 
 }
