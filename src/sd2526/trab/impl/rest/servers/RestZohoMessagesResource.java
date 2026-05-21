@@ -7,6 +7,7 @@ import sd2526.trab.api.Message;
 import sd2526.trab.api.rest.RestMessages;
 import sd2526.trab.impl.api.rest.RestAdminMessages;
 import sd2526.trab.impl.java.servers.ZohoMessages;
+import sd2526.trab.impl.rest.servers.RestResource;
 
 @Singleton
 public class RestZohoMessagesResource extends RestResource implements RestMessages, RestAdminMessages {

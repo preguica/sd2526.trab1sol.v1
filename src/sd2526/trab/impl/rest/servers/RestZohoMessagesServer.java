@@ -14,24 +14,28 @@ public class RestZohoMessagesServer extends AbstractRestServer {
 
     private static final Logger Log = Logger.getLogger(RestZohoMessagesServer.class.getName());
 
-    RestZohoMessagesServer() {
-        super(Log, Messages.SERVICE_NAME, PORT);
-    }
+    RestZohoMessagesServer() { super(Log, Messages.SERVICE_NAME, PORT); }
 
     @Override
-    void registerResources(ResourceConfig config) {
-        config.register(RestZohoMessagesResource.class);
-    }
+    void registerResources(ResourceConfig config) { config.register(RestZohoMessagesResource.class); }
 
     public static void main(String[] args) throws Exception {
+        for (int i = 0; i < args.length; i++) System.err.println("args[" + i + "] = " + args[i]);
+
         boolean cleanState = args.length > 0 && Boolean.parseBoolean(args[0]);
         String  localUser  = args.length > 1 ? args[1] : "zoho";
         String  domain     = IP.domain();
 
-        Log.info("Starting RestZohoMessagesServer – user=%s domain=%s cleanState=%b".formatted(localUser, domain,
-                cleanState));
+        Log.info("Starting RestZohoMessagesServer – user=%s domain=%s cleanState=%b"
+                .formatted(localUser, domain, cleanState));
 
-        ZohoMessages.getInstance().init(localUser, domain, cleanState);
+        try {
+            ZohoMessages.getInstance().init(localUser, domain, cleanState);
+        } catch (Exception e) {
+            System.err.println("FATAL: ZohoMessages init failed: " + e.getMessage());
+            e.printStackTrace();
+            System.exit(1);
+        }
 
         new RestZohoMessagesServer().start();
     }
